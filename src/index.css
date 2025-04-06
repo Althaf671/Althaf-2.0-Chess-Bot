@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+html {
+  overflow-y: hidden;
+}
+
+.app-bg {
+  background: rgb(45, 44, 44);
+}
+
+.kashley-text {
+  color: brown;
+}
