@@ -4,6 +4,7 @@ const { spawn } = require("child_process");
 
 const app = express();
 
+// ✅ Middleware CORS fix (buat preflight & client)
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "OPTIONS"],
@@ -11,14 +12,21 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// ✅ Preflight OPTIONS handler
 app.options("*", (req, res) => {
   res.sendStatus(200);
 });
 
+// ✅ POST /move
 app.post("/move", (req, res) => {
   const { fen, level } = req.body;
 
+  if (!fen || typeof fen !== "string") {
+    return res.status(400).json({ error: "Invalid or missing FEN string." });
+  }
+
   const stockfish = spawn("stockfish");
+  let bestMove = null;
 
   stockfish.stdin.write("uci\n");
   stockfish.stdin.write("isready\n");
@@ -30,14 +38,14 @@ app.post("/move", (req, res) => {
     console.log("Stockfish output:", output);
 
     if (output.includes("bestmove")) {
-      const bestMove = output.split("bestmove ")[1].split(" ")[0];
+      bestMove = output.split("bestmove ")[1].split(" ")[0];
       res.json({ bestMove });
       stockfish.kill();
     }
   });
 
   stockfish.stderr.on("data", (data) => {
-    console.error("Stockfish Error:", data.toString());
+    console.error("Stockfish error:", data.toString());
   });
 
   stockfish.on("close", (code) => {
@@ -45,7 +53,8 @@ app.post("/move", (req, res) => {
   });
 });
 
+// ✅ Port setup
 const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
