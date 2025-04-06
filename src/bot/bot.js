@@ -1,45 +1,56 @@
-// Stockfish engine >;)
+// Stockfish engine 🧠🔥
 
 export const getBestMove = async (fen, level = 15) => {
   try {
-    // ✅ Validasi FEN input
-    if (!fen || typeof fen !== "string") {
+    // ✅ Validasi FEN
+    if (!fen || typeof fen !== "string" || fen.trim() === "") {
       throw new Error("FEN string is invalid or missing.");
     }
 
-    // ✅ Ambil API URL dari env
+    // ✅ Ambil URL dari .env
     const apiUrl = import.meta.env.VITE_API_URL;
     if (!apiUrl) {
       throw new Error("VITE_API_URL is not defined in environment variables.");
     }
 
+    // ✅ Timeout (abort fetch kalau kelamaan)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 detik timeout
+
     const response = await fetch(`${apiUrl}/move`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Kamu bisa tambahin Authorization token di sini kalau nanti pakai auth
-        // Authorization: `Bearer ${token}`
+        // Authorization: `Bearer ${token}`, // nanti kalau pakai token
       },
       body: JSON.stringify({ fen, level }),
+      signal: controller.signal,
     });
 
-    // ✅ Cek HTTP status
+    clearTimeout(timeout);
+
+    // ✅ Handle HTTP error
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`HTTP error! Status: ${response.status} - ${text}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status} - ${errorText}`);
     }
 
-    // ✅ Parse JSON dengan validasi lebih aman
     const data = await response.json();
 
+    // ✅ Validasi respons backend
     if (!data || typeof data.bestMove !== "string") {
-      throw new Error("Best move not found or invalid in response.");
+      throw new Error("Best move not found in the response.");
     }
 
     console.log("✅ Best move dari server:", data.bestMove);
     return data.bestMove;
   } catch (error) {
-    console.error("❌ Gagal ambil best move:", error.message);
+    if (error.name === "AbortError") {
+      console.error("❌ Request timeout: Server terlalu lama membalas.");
+    } else {
+      console.error("❌ Gagal ambil best move:", error.message);
+    }
+
     return null;
   }
 };
