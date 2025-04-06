@@ -4,32 +4,38 @@ const Stockfish = require("stockfish");
 
 const app = express();
 
-// ✅ Global CORS untuk semua route dan semua method
+// ✅ CORS untuk semua route
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type"],
 }));
 
+// ✅ Parsing JSON
 app.use(express.json());
 
-// ✅ Preflight handler (biar OPTIONS gak error 405)
+// ✅ Handle preflight agar OPTIONS gak error 405
 app.options("*", cors());
 
-// ✅ Log semua request biar tahu kenapa ditolak
+// ✅ Logging
 app.use((req, res, next) => {
-  console.log("🔥 Incoming:", req.method, req.path);
+  console.log(`[${req.method}] ${req.path}`);
   next();
 });
 
+// ✅ Endpoint utama
 app.post("/move", (req, res) => {
   const { fen, level } = req.body;
+
+  if (!fen) {
+    return res.status(400).json({ error: "FEN is required." });
+  }
 
   const stockfish = Stockfish();
 
   stockfish.onmessage = (event) => {
     const output = typeof event === "object" ? event.data : event;
-    console.log("🧠 Stockfish output:", output);
+    console.log("Stockfish Output:", output);
 
     if (output.includes("bestmove")) {
       const bestMove = output.split("bestmove ")[1].split(" ")[0];
@@ -43,7 +49,8 @@ app.post("/move", (req, res) => {
   stockfish.postMessage(`go depth ${level || 15}`);
 });
 
+// ✅ Start server
 const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => {
-  console.log(`🚀 Server jalan di port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
