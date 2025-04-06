@@ -9,7 +9,9 @@ app.use(cors());
 app.use(express.json());
 
 // ✅ Tambahkan preflight response (OPTIONS)
-app.options("/move", cors()); // Ini penting buat CORS
+app.options("/move", cors(), (req, res) => {
+    res.sendStatus(200); // Kasih response supaya preflight sukses
+  });
 
 app.post("/move", (req, res) => {
   const { fen, level } = req.body;
