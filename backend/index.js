@@ -1,36 +1,54 @@
 const express = require("express");
 const cors = require("cors");
-const Stockfish = require("stockfish");
+const { spawn } = require("child_process");
 
 const app = express();
-app.use(cors());
+
+const corsOptions = {
+  origin: "*", // ganti ke domain frontend kalau perlu
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
 
 app.post("/move", (req, res) => {
   const { fen, level } = req.body;
 
-  const stockfish = Stockfish(); // WebAssembly engine
+  if (!fen) {
+    return res.status(400).json({ error: "FEN string required" });
+  }
 
-  let bestMove = null;
+  const stockfish = spawn("stockfish");
 
-  stockfish.onmessage = (event) => {
-    const output = typeof event === "object" ? event.data : event;
+  stockfish.stdin.write("uci\n");
+  stockfish.stdin.write("isready\n");
+  stockfish.stdin.write(`position fen ${fen}\n`);
+  stockfish.stdin.write(`go depth ${level || 15}\n`);
+
+  stockfish.stdout.on("data", (data) => {
+    const output = data.toString();
     console.log("Stockfish output:", output);
 
     if (output.includes("bestmove")) {
-      bestMove = output.split("bestmove ")[1].split(" ")[0];
+      const bestMove = output.split("bestmove ")[1].split(" ")[0];
       res.json({ bestMove });
+      stockfish.kill();
     }
-  };
+  });
 
-  // To run the engine
-  stockfish.postMessage("uci");
-  stockfish.postMessage("isready");
-  stockfish.postMessage(`position fen ${fen}`);
-  stockfish.postMessage(`go depth ${level || 15}`);
+  stockfish.stderr.on("data", (data) => {
+    console.error("Stockfish error:", data.toString());
+  });
+
+  stockfish.on("close", (code) => {
+    console.log(`Stockfish process exited with code ${code}`);
+  });
 });
 
 const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });
