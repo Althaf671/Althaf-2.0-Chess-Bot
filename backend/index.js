@@ -4,23 +4,22 @@ const { spawn } = require("child_process");
 
 const app = express();
 
-const corsOptions = {
-  origin: "*", // ganti ke domain frontend kalau perlu
+// ✅ Setup CORS biar preflight aman
+app.use(cors({
+  origin: "*", // Ubah ke domain Vercel kalau mau secure
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-};
-
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+  allowedHeaders: ["Content-Type"]
+}));
 app.use(express.json());
 
+// ✅ Jawab semua OPTIONS biar preflight ga error 405
+app.options("*", (req, res) => {
+  res.sendStatus(200);
+});
+
+// ✅ Endpoint untuk hitung best move
 app.post("/move", (req, res) => {
   const { fen, level } = req.body;
-
-  if (!fen) {
-    return res.status(400).json({ error: "FEN string required" });
-  }
-
   const stockfish = spawn("stockfish");
 
   stockfish.stdin.write("uci\n");
@@ -40,15 +39,16 @@ app.post("/move", (req, res) => {
   });
 
   stockfish.stderr.on("data", (data) => {
-    console.error("Stockfish error:", data.toString());
+    console.error("Stockfish Error:", data.toString());
   });
 
   stockfish.on("close", (code) => {
-    console.log(`Stockfish process exited with code ${code}`);
+    console.log(`Stockfish exited with code ${code}`);
   });
 });
 
+// ✅ Port
 const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
