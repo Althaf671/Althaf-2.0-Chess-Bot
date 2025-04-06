@@ -2,7 +2,7 @@
 
 export const getBestMove = async (fen, level = 15) => {
   try {
-    const response = await fetch("http://localhost:5050/move", {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/move`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
